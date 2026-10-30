@@ -1,90 +1,231 @@
-# Send in Docker compose
+# SecuraSend — Deployment Configuration
 
-This repository provides a basic Docker compose configuration to host a public
-[Send](https://gitlab.com/timvisee/send) instance on your own domain.
+Deployment configuration for **SecuraSend**, a public instance of [Send](https://github.com/timvisee/send) running at [securasend.com](https://securasend.com).
 
-- Hosts on your own domain
-- Provides automatic SSL certificates through LetsEncrypt
+This repository contains only the deployment layer — the Docker Compose stack, the reverse proxy configuration, and the environment template needed to stand up an equivalent instance. It does not contain application code, secrets, or user data.
 
-This configuration exposes a reverse proxy on ports 80 and 443, so these must be
-available.
+---
 
-This uses the latest Send version from
-[`timvisee/send`](https://gitlab.com/timvisee/send) because
-[`mozilla/send`](https://github.com/mozilla/send) has been archived.
-This is configurable in your [`.env`](.env.example) file.
+## What this is
 
-See [docker-compose.yaml](./docker-compose.yaml).
+[Send](https://github.com/timvisee/send) is a fork of Mozilla's discontinued [Firefox Send](https://github.com/mozilla/send) — a file-sharing service where files are encrypted in the browser before upload, so the server never holds the decryption key. Files expire automatically and can be limited by download count.
 
-*Note: for plain Docker usage without Compose, see: https://github.com/timvisee/send/blob/master/docs/docker.md*
+**Lineage:**
 
-## Usage
+```
+Mozilla Send (archived 2020)
+        └── timvisee/send            ← actively maintained fork
+                └── this deployment  ← SecuraSend
+```
 
-1. Install Docker and Docker Compose on your system: https://get.docker.com/
-2. Clone this repository `git clone https://github.com/timvisee/send-docker-compose && cd send-docker-compose`
-3. Run `cp .env.example .env` and edit `.env` and `docker-compose.yaml` to setup your configuration (see [example](#example-env))
-4. Run `docker-compose up` to start the containers (add `-d` to start it in the background)
-5. Wait 30sec for it to start, then visit your domain verify the UI is up and running, e.g. `https://send.example.com`
+This repo is built on [`timvisee/send-docker-compose`](https://github.com/timvisee/send-docker-compose), which provides the reference Compose setup including an nginx reverse proxy and automated Let's Encrypt certificates.
 
-<img src="https://i.imgur.com/eyvrWAP.png" alt="Screenshot of succesfully running Send UI" width="450px"/>
+---
 
-*Note: the server will autostart on boot (to disable, change all the `restart: always` lines to `restart: on-failure`)*
+## Stack
 
-## Example .env
+Four containers, orchestrated by Docker Compose:
+
+| Container | Role |
+|---|---|
+| `send` | The Send application (Node.js) |
+| `redis` | Metadata store for upload records |
+| `nginx-proxy` | Reverse proxy, TLS termination, HTTP → HTTPS redirect |
+| `proxy-letsencrypt` | Certificate issuance and renewal via Let's Encrypt |
+
+Uploaded files are stored on the host filesystem via a bind mount (`./uploads`), not inside the container. This means uploads survive container restarts and rebuilds.
+
+---
+
+## Requirements
+
+- A Linux server with root or sudo access
+- Docker Engine and the Docker Compose plugin
+- A domain with an `A` record pointing at the server
+- Ports 80 and 443 free on the host
+
+Any reasonably sized VPS will run this comfortably. Send plus Redis typically use under 1 GB of RAM in normal operation. Disk is the real constraint — uploads accumulate until they expire, so size the volume according to how generous your file-size and expiry limits are.
+
+---
+
+## Deployment
+
+### 1. Install Docker
+
+Follow Docker's official instructions for your distribution. On Debian:
 
 ```bash
-# Docker image to use for Send
-# - Latest Send version by @timvisee: registry.gitlab.com/timvisee/send:latest
-# - Outdated (archived) Send version by Mozilla: mozilla/send:latest
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
+```
+
+Add your user to the `docker` group so you don't need `sudo` for every command:
+
+```bash
+sudo usermod -aG docker "$USER"
+newgrp docker
+```
+
+### 2. Clone and configure
+
+```bash
+git clone https://github.com/signaljam/securasend-deploy.git
+cd securasend-deploy
+cp .env.example .env
+```
+
+Edit `.env` and set your own domain and a reachable email address:
+
+```ini
 DOCKER_SEND_IMAGE=registry.gitlab.com/timvisee/send:latest
-
-# Host to expose Send on
-HOST=send.example.com
-
-# Base URL for Send
-SEND_BASE_URL=https://send.example.com
-
-# Optional: for LetsEncrypt SSL, same as HOST
-LETSENCRYPT_HOST=send.example.com
-
-# Optional: for LetsEncrypt SSL, your email address
-LETSENCRYPT_EMAIL=ssl@send.example.com
+HOST=your-domain.com
+SEND_BASE_URL=https://your-domain.com
+LETSENCRYPT_HOST=your-domain.com
+LETSENCRYPT_EMAIL=you@example.com
 ```
 
-## Configuration
+Notes:
 
-All the config options and their defaults can be found here: https://github.com/timvisee/send/blob/master/server/config.js
+- `HOST` and `LETSENCRYPT_HOST` must match.
+- `SEND_BASE_URL` must include the scheme and must not have a trailing slash.
+- The email is used by Let's Encrypt for expiry and renewal-failure notices. It must be reachable, but it does not need to be an address on your domain.
+- Watch for trailing whitespace on these lines — it can silently corrupt the value.
 
-For more documentation about the config options available and their defaults, see: https://github.com/timvisee/send/blob/master/docs/docker.md
+### 3. Fix upload directory permissions
 
-Config options expecting array values (e.g. `EXPIRE_TIMES_SECONDS`, `DOWNLOAD_COUNTS`) should be set as bare comma separated values, and the first entry is used as the default.
+**This step is required.** The Send container runs as an unprivileged user, but the `uploads` directory created by the Compose setup is owned by root. Without this, uploads fail partway through and crash the application:
 
-Other options should be set as unquoted strings, integers, booleans, etc., for example:
-```yaml
-...
-services:
-  ...
-  send:
-    ...
-    environment:
-      ...
-
-      # strings numbers, bools, etc. should all be set as bare unquoted values
-      - BASE_URL=https://send.example.com
-      - DHPARAM_GENERATION=false
-      - MAX_DOWNLOADS=250000
-
-      # use values set in the .env using ${VARNAME} bash syntax
-      - VIRTUAL_HOST=${HOST}
-      
-      # time values are all in seconds, e.g. 365d * 60*60*24 = 31,536,000 seconds
-      - MAX_EXPIRE_SECONDS=31536000
-      - DEFAULT_EXPIRE_SECONDS=86400
-
-      # size values are are in bytes, e.g. 10GB * 1024*1024*1024 = 10,747,904,000 bytes
-      - MAX_FILE_SIZE=10747904000
-
-      # array configs are set as CSV (first entry is the default for the UI dropdown)
-      - EXPIRE_TIMES_SECONDS=86400,3600,86400,604800,2592000,31536000,157680000
-      - DOWNLOAD_COUNTS=10,1,2,5,10,15,25,50,100,1000,10000,100000,250000
 ```
+uncaughtException: Error: ENOENT: no such file or directory, unlink '/uploads/...'
+```
+
+The browser connection drops mid-upload, and the container restarts. The fix is to give the host directory the same ownership as the user inside the container:
+
+```bash
+sudo chown -R 1000:1000 ./uploads
+```
+
+Verify it worked before starting the stack:
+
+```bash
+docker compose up -d
+docker compose exec send sh -c "touch /uploads/.test && rm /uploads/.test && echo writable"
+```
+
+If that prints `writable`, uploads will work.
+
+### 4. Start
+
+```bash
+docker compose up -d
+```
+
+The Let's Encrypt container will request a certificate once DNS resolves to your server. Certificates renew automatically thereafter.
+
+Check status and logs:
+
+```bash
+docker compose ps
+docker compose logs -f proxy-letsencrypt
+```
+
+---
+
+## Configuration reference
+
+The full set of environment variables is documented in [`timvisee/send`'s docker documentation](https://github.com/timvisee/send/blob/master/docs/docker.md). The ones that matter most for a public instance:
+
+| Variable | Purpose |
+|---|---|
+| `MAX_FILE_SIZE` | Maximum upload size in bytes |
+| `MAX_EXPIRE_SECONDS` | Longest permitted expiry |
+| `EXPIRE_TIMES_SECONDS` | Expiry options offered in the UI |
+| `MAX_DOWNLOADS` | Upper bound on download count |
+| `DOWNLOAD_COUNTS` | Download-count options offered in the UI |
+| `DEFAULT_DOWNLOADS` | Default download limit |
+
+Several branding elements — accent colours, footer text, custom URLs — can be set through environment variables without rebuilding the application. Changing the logo requires building a custom image from a fork of `timvisee/send`.
+
+---
+
+## Operating notes
+
+**Disk usage.** Uploads occupy host disk until they expire. Monitor with `df -h` and tune `MAX_FILE_SIZE` / expiry limits accordingly. Public instances fill up faster than intuition suggests.
+
+**Abuse handling.** Because files are end-to-end encrypted, the operator cannot inspect content. Practical measures are conservative size and expiry limits, a published contact address for complaints, and a willingness to delete records on valid notice.
+
+**Updates.**
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+**Backups.** The only irreplaceable artefacts are `.env` and the Let's Encrypt certificate volume. Uploads are transient by design. Store a copy of `.env` somewhere safe and outside the repository.
+
+---
+
+## Repository hygiene
+
+`.gitignore` excludes:
+
+- `.env` — contains deployment-specific values
+- `uploads/` — contains user data
+
+Neither should ever be committed. If you fork this, verify both remain excluded before your first push.
+
+---
+
+## Licensing
+
+The deployment configuration in this repository is released under the **Mozilla Public License 2.0**, matching the licence of the upstream [`timvisee/send`](https://github.com/timvisee/send) project it deploys.
+
+Send itself is derived from Mozilla's Firefox Send, originally released under MPL-2.0. Modifications to application source, if any, are published in a separate repository.
+
+**The licence covers the code. It does not cover the name, logo, or visual identity — see below.**
+
+---
+
+## Branding and trademarks
+
+The **MPL-2.0 licence grants rights to the code only.** It does not grant any right to use the names, logos, or visual identity of SecuraSend or Signal Jam.
+
+Specifically, the following are trademarks and brand assets of Signal Jam and are **not** licensed for reuse:
+
+- The name **SecuraSend**
+- The name **Signal Jam**
+- The SecuraSend and Signal Jam logos, wordmarks, and icons
+- The visual identity of the SecuraSend instance (colour scheme, typography, and interface styling as presented at securasend.com)
+
+You are free to use this code to operate your own file-sharing instance. If you do, you **must**:
+
+1. Remove all Signal Jam and SecuraSend branding from your deployment, and
+2. Operate under a name and visual identity of your own that does not suggest affiliation with, endorsement by, or sponsorship from Signal Jam.
+
+For permission to use any Signal Jam brand asset, [contact us.](https://signaljam.me/contact)
+
+---
+
+## About Signal Jam
+
+Signal Jam is a podcast, blog, and community project about regaining and maintaining privacy in the Surveillance Age. From time to time, we publish tools which we hope provide value in educating, promoting, and sustaining digital privacy.
+
+---
+
+## Credits
+
+- [Mozilla](https://github.com/mozilla/send) — original Firefox Send
+- [timvisee](https://github.com/timvisee) — maintained fork and the Compose reference setup this repo is built on
