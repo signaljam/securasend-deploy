@@ -4,6 +4,8 @@ Deployment configuration for **SecuraSend**, a public instance of [Send](https:/
 
 This repository contains only the deployment layer — the Docker Compose stack, the reverse proxy configuration, and the environment template needed to stand up an equivalent instance. It does not contain application code, secrets, or user data.
 
+> **Note:** This repository began as a clone of [`timvisee/send-docker-compose`](https://github.com/timvisee/send-docker-compose). The full upstream history is preserved in the commit log.
+
 ---
 
 ## What this is
