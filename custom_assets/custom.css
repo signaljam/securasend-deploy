@@ -1,0 +1,32 @@
+/* SecuraSend — background: hex-byte rain (with secrets) */
+
+/* LIGHT MODE */
+html {
+  background-color: #f7f8fa !important;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='260'%3E%3Ctext x='14' y='16' font-family='monospace' font-size='12' letter-spacing='4' fill='rgba(0,0,0,0.09)'%3E73 65 63 75 72 61%3C/text%3E%3Ctext x='230' y='64' font-family='monospace' font-size='14' letter-spacing='4' fill='rgba(0,0,0,0.06)'%3E45 6E 63 72 79 70 74 20 45 76 65 72 79 74 68 69 6E 67%3C/text%3E%3Ctext x='85' y='112' font-family='monospace' font-size='13' letter-spacing='4' fill='rgba(0,0,0,0.04)'%3E73 69 67 6E 61 6C 6A 61 6D 2E 6D 65%3C/text%3E%3Ctext x='310' y='152' font-family='monospace' font-size='16' letter-spacing='5' fill='rgba(0,0,0,0.07)'%3E70 72 69 76 61 63 79 20 69 73 20 70 6F 77 65 72%3C/text%3E%3Ctext x='40' y='198' font-family='monospace' font-size='11' letter-spacing='4' fill='rgba(0,0,0,0.03)'%3E73 65 63 75 72 61%3C/text%3E%3Ctext x='180' y='248' font-family='monospace' font-size='12' letter-spacing='4' fill='rgba(0,0,0,0.05)'%3E73 69 67 6E 61 6C 6A 61 6D 2E 6D 65%3C/text%3E%3C/svg%3E"),
+    linear-gradient(160deg, #ffffff, #eef1f6) !important;
+  background-size: auto, cover !important;
+  min-height: 100vh !important;
+}
+
+/* DARK MODE */
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: #0d1117 !important;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='260'%3E%3Ctext x='14' y='16' font-family='monospace' font-size='12' letter-spacing='4' fill='rgba(255,255,255,0.09)'%3E73 65 63 75 72 61%3C/text%3E%3Ctext x='230' y='64' font-family='monospace' font-size='14' letter-spacing='4' fill='rgba(255,255,255,0.06)'%3E45 6E 63 72 79 70 74 20 45 76 65 72 79 74 68 69 6E 67%3C/text%3E%3Ctext x='85' y='112' font-family='monospace' font-size='13' letter-spacing='4' fill='rgba(255,255,255,0.04)'%3E73 69 67 6E 61 6C 6A 61 6D 2E 6D 65%3C/text%3E%3Ctext x='310' y='152' font-family='monospace' font-size='16' letter-spacing='5' fill='rgba(255,255,255,0.07)'%3E70 72 69 76 61 63 79 20 69 73 20 70 6F 77 65 72%3C/text%3E%3Ctext x='40' y='198' font-family='monospace' font-size='11' letter-spacing='4' fill='rgba(255,255,255,0.03)'%3E73 65 63 75 72 61%3C/text%3E%3Ctext x='180' y='248' font-family='monospace' font-size='12' letter-spacing='4' fill='rgba(255,255,255,0.05)'%3E73 69 67 6E 61 6C 6A 61 6D 2E 6D 65%3C/text%3E%3C/svg%3E"),
+      linear-gradient(160deg, #0d1117, #161b27) !important;
+    background-size: auto, cover !important;
+    min-height: 100vh !important;
+  }
+}
+
+body {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+send-intro {
+  background-color: transparent !important;
+}

@@ -52,6 +52,7 @@ services:
       - CUSTOM_FOOTER_TEXT=${CUSTOM_FOOTER_TEXT}
       - CUSTOM_FOOTER_URL=${CUSTOM_FOOTER_URL}
       - SEND_FOOTER_SOURCE_URL=${SEND_FOOTER_SOURCE_URL}
+      - UI_CUSTOM_CSS=${UI_CUSTOM_CSS}
 
       # For local uploads storage
       - FILE_DIR=/uploads
