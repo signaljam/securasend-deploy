@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   nginx-proxy:
     container_name: nginx-proxy
@@ -38,6 +36,7 @@ services:
       - '1234:1234'
     volumes:
       - ./uploads:/uploads
+      - ./custom_assets:/app/dist/custom_assets:ro
     environment:
       - VIRTUAL_HOST=${HOST}
       - VIRTUAL_PORT=1234
@@ -48,6 +47,11 @@ services:
       - BASE_URL=${SEND_BASE_URL}
       - PORT=1234
       - REDIS_HOST=redis
+      - UI_CUSTOM_ASSETS_ICON=${UI_CUSTOM_ASSETS_ICON}
+      - UI_CUSTOM_ASSETS_WORDMARK=${UI_CUSTOM_ASSETS_WORDMARK}
+      - CUSTOM_FOOTER_TEXT=${CUSTOM_FOOTER_TEXT}
+      - CUSTOM_FOOTER_URL=${CUSTOM_FOOTER_URL}
+      - SEND_FOOTER_SOURCE_URL=${SEND_FOOTER_SOURCE_URL}
 
       # For local uploads storage
       - FILE_DIR=/uploads
