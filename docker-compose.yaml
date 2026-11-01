@@ -57,6 +57,15 @@ services:
       # For local uploads storage
       - FILE_DIR=/uploads
 
+      # Custom upload/download parameters
+      - EXPIRE_TIMES_SECONDS=1800,3600,43200,86400,259200,604800
+      - DEFAULT_EXPIRE_SECONDS=86400
+      - MAX_EXPIRE_SECONDS=604800
+      - DOWNLOAD_COUNTS=1,2,5,10,100,1000
+      - DEFAULT_DOWNLOADS=1
+      - MAX_DOWNLOADS=1000
+      - MAX_FILE_SIZE=2684354560
+
       # For S3 object storage (disable volume and FILE_DIR variable)
       # - AWS_ACCESS_KEY_ID=********
       # - AWS_SECRET_ACCESS_KEY=********

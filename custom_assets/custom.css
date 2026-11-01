@@ -30,3 +30,34 @@ body {
 send-intro {
   background-color: transparent !important;
 }
+
+/* Slightly adjust the intro cards to match the background  */
+
+section.h-full.w-full.md\:rounded-xl.md\:shadow-big {
+  background-color: #fafbfd !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  section.h-full.w-full.md\:rounded-xl.md\:shadow-big {
+    background-color: #171c28 !important;
+  }
+}
+
+/* Signal Jam golden gradient button */
+.btn {
+  background-color: #ffc93f !important;
+  background-image: linear-gradient(135deg, #ffd75e, #ffb82e) !important;
+  color: #1a1a2e !important; /* dark ink text for contrast on yellow */
+  border: none !important;
+  text-shadow: none !important;
+  transition: filter 0.15s ease !important;
+}
+
+.btn:hover {
+  filter: brightness(1.08) !important;
+}
+
+.btn:focus-visible {
+  outline: 2px solid #ffc93f !important;
+  outline-offset: 2px !important;
+}
